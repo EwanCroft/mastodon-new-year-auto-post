@@ -2,80 +2,46 @@ from mastodon import Mastodon
 import datetime
 import time
 import os
+import configparser
 
-root = os.path.dirname(os.path.realpath(__file__))
-credentials = root + "\\credentials\\"
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-if not os.path.exists(credentials):
-    os.makedirs(credentials)
-else:
-    print(f"\"{credentials}\" exists.")
-
-if not os.path.exists(f"{credentials}server.txt"):
-    server = input("Enter Mastodon instance:\n")
-    open(f"{credentials}server.txt", "w", encoding = "utf-8").write(server)
-
-else:
-    print("Server already provided.")
-
-server = open(f"{credentials}server.txt", "r", encoding = "utf-8").readlines(0)
-
-list = []
-
-for item in server:
-    list.append(item)
-
-server = list[0]
-
-if not os.path.exists(f"{credentials}email.txt"):
-    email = input("Enter Mastodon email:\n")
-    open(f"{credentials}email.txt", "w", encoding = "utf-8").write(email)
-
-else:
-    print("email already provided.")
-
-email = open(f"{credentials}email.txt", "r", encoding = "utf-8").readlines(0)
-
-list = []
-
-for item in email:
-    list.append(item)
-
-email = list[0]
-
-if not os.path.exists(f"{credentials}password.txt"):
-    pwd = input("Enter Mastodon password:\n")
-    open(f"{credentials}password.txt", "w", encoding = "utf-8").write(pwd)
-
-else:
-    print("password already provided.")
-
-password = open(f"{credentials}password.txt", "r", encoding = "utf-8").readlines(0)
-
-list = []
-
-for item in password:
-    list.append(item)
-
-password = list[0]
-
-Mastodon_API = f"{server}"
-
-if not os.path.exists(f"{credentials}bot_credentials.txt"):
-    Mastodon.create_app(
-        "New Year Celebrations!",
-        api_base_url = f"{server}",
-        to_file = f"{credentials}bot_credentials.txt"
+if not os.path.exists(rf'{ROOT_DIR}\config.ini'):
+    url = input("Enter the URL of your Mastodon instance:\n")
+    email = input("Enter your email address:\n")
+    password = input("Enter your password:\n")
+    
+    app_info = Mastodon.create_app(
+        "New Year Message Poster",
+        api_base_url = f"{url}"
     )
-else:
-    pass
+    client_id, client_secret = app_info
 
-mastodon = Mastodon(client_id = f"{credentials}bot_credentials.txt")
-mastodon.log_in(
-    f"{email}",
-    f"{password}",
-    to_file = f"{credentials}user_credentials.txt"
-)
+    mastodon = Mastodon(client_id=client_id, client_secret=client_secret, api_base_url=url)
+    access_token = mastodon.log_in(email, password)
+
+    config = configparser.ConfigParser()
+    config['MASTODON'] = {'url': url,
+                          'email': email,
+                          'password': password,
+                          'client_id': client_id,
+                          'client_secret': client_secret,
+                          'access_token': access_token}
+    
+    with open(rf'{ROOT_DIR}\config.ini', 'w') as configfile:
+        config.write(configfile)
+
+config = configparser.ConfigParser()
+config.read(rf'{ROOT_DIR}\config.ini')
+url = config['MASTODON']['url']
+email = config['MASTODON']['email']
+password = config['MASTODON']['password']
+client_id_str = config['MASTODON']['client_id']
+client_secret_str = config['MASTODON']['client_secret']
+access_token_str = config['MASTODON']['access_token']
+
+mastodon = Mastodon(client_id=client_id_str, client_secret=client_secret_str, access_token=access_token_str, api_base_url=url)
+
 
 while True:
     time.sleep(1)
@@ -85,7 +51,8 @@ while True:
     New_Year = f"01/01/{year}, 00:00:00"
 
     if current == New_Year:
-        mastodon.status_post(f"Happy New Year! #HappyNewYear{year}")
-        break
-    else:
-        print(f"Not yet, it's {current}")
+        try:
+            mastodon.status_post(status = f"Happy New Year! #HappyNewYear #HappyNewYear{year}")
+            break
+        except Exception as e:
+            print(e)
